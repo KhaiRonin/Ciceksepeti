@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\kibrisciceksepetim]
+@="URL:KibrisCicekSepetim Protocol"
+"URL Protocol"=""
+
+[HKEY_CURRENT_USER\Software\Classes\kibrisciceksepetim\DefaultIcon]
+@="\"C:\\Path\\To\\KibrisCicekSepetim.exe\",1"
+
+[HKEY_CURRENT_USER\Software\Classes\kibrisciceksepetim\shell]
+
+[HKEY_CURRENT_USER\Software\Classes\kibrisciceksepetim\shell\open]
+
+[HKEY_CURRENT_USER\Software\Classes\kibrisciceksepetim\shell\open\command]
+@="\"C:\\Path\\To\\KibrisCicekSepetim.exe\" \"%1\""
