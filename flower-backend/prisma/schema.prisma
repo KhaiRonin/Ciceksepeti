@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  user
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELED
+}
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  email     String    @unique
+  password  String
+  name      String
+  role      Role      @default(user)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  addresses Address[]
+  cart      Cart?
+  orders    Order[]
+  tokens    Token[]
+  reviews   Review[]
+  returns   Return[]
+}
+
+model Address {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  fullName    String
+  phone       String
+  country     String
+  city        String
+  addressLine String
+  postalCode  String
+  createdAt   DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@index([userId])
+}
+
+model Category {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique
+  translations Json?
+  imageUrl  String?
+  createdAt DateTime  @default(now())
+
+  products Product[]
+}
+
+model Product {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  description String
+  translations Json?
+  price       Decimal   @db.Decimal(10, 2)
+  discountPercent Decimal? @db.Decimal(5, 2)
+  discountStartAt DateTime?
+  discountEndAt DateTime?
+  stock       Int
+  images      String[]
+  categoryId  String    @db.Uuid
+  createdAt   DateTime  @default(now())
+
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  reviews    Review[]
+
+  @@index([categoryId])
+}
+
+model Cart {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @unique @db.Uuid
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  cartId    String   @db.Uuid
+  productId String   @db.Uuid
+  quantity  Int
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+  @@index([productId])
+}
+
+model Order {
+  id         String      @id @default(uuid()) @db.Uuid
+  userId     String      @db.Uuid
+  totalPrice Decimal     @db.Decimal(10, 2)
+  status     OrderStatus @default(PENDING)
+  giftNote   String?
+  deliveryRegion String?
+  deliveryDate String?
+  deliveryTime String?
+  paymentProvider String?
+  paymentReference String? @unique
+  paidAt DateTime?
+  addressId  String      @db.Uuid
+  createdAt  DateTime    @default(now())
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  address Address     @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  items   OrderItem[]
+  returns Return[]
+
+  @@index([userId])
+  @@index([addressId])
+  @@index([paymentReference])
+}
+
+model OrderItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @db.Uuid
+  productId String   @db.Uuid
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Token {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @db.Uuid
+  hashedRefreshToken String
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Kupon Modeli ─────────────────────────────────────────────────────────────
+enum CouponType {
+  PERCENTAGE
+  FIXED
+}
+
+model Coupon {
+  id          String     @id @default(uuid()) @db.Uuid
+  code        String     @unique
+  type        CouponType @default(PERCENTAGE)
+  value       Decimal    @db.Decimal(10, 2)
+  minOrder    Decimal?   @db.Decimal(10, 2)
+  maxUses     Int?
+  usedCount   Int        @default(0)
+  isActive    Boolean    @default(true)
+  expiresAt   DateTime?
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+// ─── Ürün Yorumları ───────────────────────────────────────────────────────────
+model Review {
+  id         String   @id @default(uuid()) @db.Uuid
+  productId  String   @db.Uuid
+  userId     String   @db.Uuid
+  rating     Int
+  comment    String?
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+}
+
+// ─── Baner/Slider ─────────────────────────────────────────────────────────────
+model Banner {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String
+  imageUrl  String
+  linkUrl   String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── İade Talepleri ───────────────────────────────────────────────────────────
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+model Return {
+  id        String       @id @default(uuid()) @db.Uuid
+  orderId   String       @db.Uuid
+  userId    String       @db.Uuid
+  reason    String
+  status    ReturnStatus @default(PENDING)
+  adminNote String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([userId])
+}
+
+model GiftNoteTemplate {
+  id            String   @id @default(uuid()) @db.Uuid @map("id")
+  recipientType String   @map("recipienttype")
+  content       String   @map("content")
+  sortOrder     Int      @default(0) @map("sortorder")
+  isActive      Boolean  @default(true) @map("isactive")
+  createdAt     DateTime @default(now()) @map("createdat")
+  updatedAt     DateTime @updatedAt @map("updatedat")
+
+  @@index([recipientType, isActive], map: "giftnotetemplate_recipienttype_isactive_idx")
+  @@map("giftnotetemplate")
+}
